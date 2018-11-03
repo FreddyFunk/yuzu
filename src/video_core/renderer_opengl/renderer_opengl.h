@@ -98,7 +98,8 @@ private:
     GLuint attrib_tex_coord;
 
     /// Used for transforming the framebuffer orientation
-    Tegra::FramebufferConfig::TransformFlags framebuffer_transform_flags;
+    Tegra::FramebufferConfig::TransformFlags framebuffer_transform_flag;
+    Tegra::FramebufferConfig::TransformFlags framebuffer_sticky_transform_flag;
     MathUtil::Rectangle<int> framebuffer_crop_rect;
 };
 

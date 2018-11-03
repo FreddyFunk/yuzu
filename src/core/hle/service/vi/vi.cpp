@@ -382,7 +382,7 @@ public:
         s32_le crop_bottom;
         s32_le scaling_mode;
         NVFlinger::BufferQueue::BufferTransformFlags transform;
-        u32_le sticky_transform;
+        NVFlinger::BufferQueue::BufferTransformFlags sticky_transform;
         INSERT_PADDING_WORDS(2);
         u32_le fence_is_valid;
         std::array<Fence, 2> fences;

@@ -153,7 +153,8 @@ void NVFlinger::Compose() {
 
         nvdisp->flip(igbp_buffer.gpu_buffer_id, igbp_buffer.offset, igbp_buffer.format,
                      igbp_buffer.width, igbp_buffer.height, igbp_buffer.stride,
-                     buffer->get().transform, buffer->get().crop_rect);
+                     buffer->get().transform, buffer->get().sticky_transform,
+                     buffer->get().crop_rect);
 
         buffer_queue->ReleaseBuffer(buffer->get().slot);
     }

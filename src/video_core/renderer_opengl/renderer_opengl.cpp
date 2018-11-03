@@ -160,7 +160,8 @@ void RendererOpenGL::LoadFBToScreenInfo(const Tegra::FramebufferConfig& framebuf
     const VAddr framebuffer_addr{framebuffer.address + framebuffer.offset};
 
     // Framebuffer orientation handling
-    framebuffer_transform_flags = framebuffer.transform_flags;
+    framebuffer_sticky_transform_flag = framebuffer.sticky_transform_flag;
+    framebuffer_transform_flag = framebuffer.transform_flag;
     framebuffer_crop_rect = framebuffer.crop_rect;
 
     // Ensure no bad interactions with GL_UNPACK_ALIGNMENT, which by default
@@ -323,15 +324,43 @@ void RendererOpenGL::DrawScreenTriangles(const ScreenInfo& screen_info, float x,
     const auto& texcoords = screen_info.display_texcoords;
     auto left = texcoords.left;
     auto right = texcoords.right;
-    if (framebuffer_transform_flags != Tegra::FramebufferConfig::TransformFlags::Unset) {
-        if (framebuffer_transform_flags == Tegra::FramebufferConfig::TransformFlags::FlipV) {
+    auto top = texcoords.top;
+    auto bottom = texcoords.bottom;
+
+    if (framebuffer_sticky_transform_flag != Tegra::FramebufferConfig::TransformFlags::Unset) {
+        if (framebuffer_sticky_transform_flag == Tegra::FramebufferConfig::TransformFlags::FlipV) {
             // Flip the framebuffer vertically
             left = texcoords.right;
             right = texcoords.left;
-        } else {
+        } else if (framebuffer_sticky_transform_flag ==
+                   Tegra::FramebufferConfig::TransformFlags::FlipH) {
+            top = texcoords.bottom;
+            bottom = texcoords.top;
+        } else if (framebuffer_sticky_transform_flag ==
+                   Tegra::FramebufferConfig::TransformFlags::Rotate180) {
+            top = texcoords.bottom;
+            bottom = texcoords.top;
+            left = texcoords.right;
+            right = texcoords.left;
+        }
+    } else if (framebuffer_transform_flag != Tegra::FramebufferConfig::TransformFlags::Unset) {
+        if (framebuffer_transform_flag == Tegra::FramebufferConfig::TransformFlags::FlipV) {
+            // Flip the framebuffer vertically
+            left = texcoords.right;
+            right = texcoords.left;
+        } else if (framebuffer_transform_flag == Tegra::FramebufferConfig::TransformFlags::FlipH) {
+            top = texcoords.bottom;
+            bottom = texcoords.top;
+        } else if (framebuffer_transform_flag == Tegra::FramebufferConfig::TransformFlags::Rotate180) {
+            top = texcoords.bottom;
+            bottom = texcoords.top;
+            left = texcoords.right;
+            right = texcoords.left;
+        }
+        else {
             // Other transformations are unsupported
             LOG_CRITICAL(Render_OpenGL, "Unsupported framebuffer_transform_flags={}",
-                         static_cast<u32>(framebuffer_transform_flags));
+                         static_cast<u32>(framebuffer_transform_flag));
             UNIMPLEMENTED();
         }
     }
@@ -350,10 +379,10 @@ void RendererOpenGL::DrawScreenTriangles(const ScreenInfo& screen_info, float x,
     }
 
     std::array<ScreenRectVertex, 4> vertices = {{
-        ScreenRectVertex(x, y, texcoords.top * scale_u, left * scale_v),
-        ScreenRectVertex(x + w, y, texcoords.bottom * scale_u, left * scale_v),
-        ScreenRectVertex(x, y + h, texcoords.top * scale_u, right * scale_v),
-        ScreenRectVertex(x + w, y + h, texcoords.bottom * scale_u, right * scale_v),
+        ScreenRectVertex(x, y, top * scale_u, left * scale_v),
+        ScreenRectVertex(x + w, y, bottom * scale_u, left * scale_v),
+        ScreenRectVertex(x, y + h, top * scale_u, right * scale_v),
+        ScreenRectVertex(x + w, y + h, bottom * scale_u, right * scale_v),
     }};
 
     state.texture_units[0].texture = screen_info.display_texture;

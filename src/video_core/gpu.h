@@ -94,7 +94,8 @@ struct FramebufferConfig {
     PixelFormat pixel_format;
 
     using TransformFlags = Service::NVFlinger::BufferQueue::BufferTransformFlags;
-    TransformFlags transform_flags;
+    TransformFlags transform_flag;
+    TransformFlags sticky_transform_flag;
     MathUtil::Rectangle<int> crop_rect;
 };
 
