@@ -37,6 +37,8 @@ using ComponentType = VideoCore::Surface::ComponentType;
 struct SurfaceParams {
     static std::string SurfaceTargetName(SurfaceTarget target) {
         switch (target) {
+        case SurfaceTarget::Texture1DBuffer:
+            return "Texture1DBuffer";
         case SurfaceTarget::Texture1D:
             return "Texture1D";
         case SurfaceTarget::Texture2D:

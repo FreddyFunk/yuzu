@@ -104,6 +104,7 @@ std::size_t SurfaceParams::InnerMemorySize(bool force_gl, bool layer_only,
     params.target = SurfaceTargetFromTextureType(config.tic.texture_type);
 
     switch (params.target) {
+    case SurfaceTarget::Texture1DBuffer:
     case SurfaceTarget::Texture1D:
     case SurfaceTarget::Texture2D:
         params.depth = 1;
@@ -329,6 +330,8 @@ static constexpr std::array<FormatTuple, VideoCore::Surface::MaxPixelFormat> tex
 
 static GLenum SurfaceTargetToGL(SurfaceTarget target) {
     switch (target) {
+    case SurfaceTarget::Texture1DBuffer:
+        return GL_TEXTURE_BUFFER;
     case SurfaceTarget::Texture1D:
         return GL_TEXTURE_1D;
     case SurfaceTarget::Texture2D:
@@ -760,6 +763,9 @@ static void CopySurface(const Surface& src_surface, const Surface& dst_surface,
         UNREACHABLE();
     } else {
         switch (dst_params.target) {
+        case SurfaceTarget::Texture1DBuffer:
+            glTextureBuffer(dst_surface->Texture().handle, dest_format.internal_format, 0);
+            break;
         case SurfaceTarget::Texture1D:
             glTextureSubImage1D(dst_surface->Texture().handle, 0, 0, width, dest_format.format,
                                 dest_format.type, nullptr);
@@ -812,6 +818,16 @@ CachedSurface::CachedSurface(const SurfaceParams& params)
     if (!format_tuple.compressed) {
         // Only pre-create the texture for non-compressed textures.
         switch (params.target) {
+        case SurfaceTarget::Texture1DBuffer:
+            /*GLsizei width = rect.GetWidth();
+            for (int i = 0; i < params.max_mip_level; i++) {
+                glTexImage1D(SurfaceTargetToGL(params.target), i, format_tuple.internal_format,
+                             width, 0, format_tuple.format, format_tuple.type, NULL);
+                width = std::max(1, (width / 2));
+            }*/
+
+            glTextureBuffer(SurfaceTargetToGL(params.target), format_tuple.internal_format, 0);
+            break;
         case SurfaceTarget::Texture1D:
             glTexStorage1D(SurfaceTargetToGL(params.target), params.max_mip_level,
                            format_tuple.internal_format, rect.GetWidth());
@@ -1108,6 +1124,9 @@ void CachedSurface::UploadGLMipmapTexture(u32 mip_map, GLuint read_fb_handle,
     } else {
 
         switch (params.target) {
+        case SurfaceTarget::Texture1DBuffer:
+            glTextureBuffer(SurfaceTargetToGL(params.target), tuple.internal_format, 0);
+            break;
         case SurfaceTarget::Texture1D:
             glTexSubImage1D(SurfaceTargetToGL(params.target), mip_map, x0,
                             static_cast<GLsizei>(rect.GetWidth()), tuple.format, tuple.type,

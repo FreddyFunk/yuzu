@@ -10,6 +10,8 @@ namespace VideoCore::Surface {
 
 SurfaceTarget SurfaceTargetFromTextureType(Tegra::Texture::TextureType texture_type) {
     switch (texture_type) {
+    case Tegra::Texture::TextureType::Texture1DBuffer:
+        return SurfaceTarget::Texture1DBuffer;
     case Tegra::Texture::TextureType::Texture1D:
         return SurfaceTarget::Texture1D;
     case Tegra::Texture::TextureType::Texture2D:
@@ -34,6 +36,7 @@ SurfaceTarget SurfaceTargetFromTextureType(Tegra::Texture::TextureType texture_t
 
 bool SurfaceTargetIsLayered(SurfaceTarget target) {
     switch (target) {
+    case SurfaceTarget::Texture1DBuffer:
     case SurfaceTarget::Texture1D:
     case SurfaceTarget::Texture2D:
     case SurfaceTarget::Texture3D:
