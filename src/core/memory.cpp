@@ -393,6 +393,69 @@ u64 Read64(const VAddr addr) {
     return Read<u64_le>(addr);
 }
 
+void TryReadBlockFast(const Kernel::Process& process, const VAddr src_addr, void* dest_buffer,
+                      const std::size_t size) {
+
+    const auto& page_table = process.VMManager().page_table;
+
+    std::size_t page_index = src_addr >> PAGE_BITS;
+    const std::size_t page_offset = src_addr & PAGE_MASK;
+    constexpr std::size_t page_size_t = static_cast<std::size_t>(PAGE_SIZE);
+
+    PageType last_page_type = page_table.attributes[page_index];
+
+    // first copy_amout (is the only one where page_offset is not equal to 0)
+    const std::size_t first_page_memory_section = std::min(page_size_t - page_offset, size);
+    page_index++;
+    std::size_t remaining_size_for_check = size - first_page_memory_section;
+
+    bool is_coherent_memory = true;
+    // check if whole memory has the same PageType and is in one coherent memorz block
+    while (remaining_size_for_check > 0) {
+        if (last_page_type != page_table.attributes[page_index] &&
+            page_table.pointers[page_index] != page_table.pointers[page_index - 1] + 1) {
+            is_coherent_memory = false;
+            break;
+        }
+        page_index++;
+        remaining_size_for_check -= std::min(page_size_t, remaining_size_for_check);
+    }
+
+    // Slower ReadBlock fallback
+    if (!is_coherent_memory) {
+        ReadBlock(process, src_addr, dest_buffer, size);
+        return;
+    }
+
+    page_index = src_addr >> PAGE_BITS;
+
+    const VAddr current_vaddr = static_cast<VAddr>((page_index << PAGE_BITS) + page_offset);
+
+    switch (page_table.attributes[page_index]) {
+    case PageType::Memory: {
+        DEBUG_ASSERT(page_table.pointers[page_index]);
+
+        const u8* src_ptr = page_table.pointers[page_index] + page_offset;
+        std::memcpy(dest_buffer, src_ptr, size);
+        break;
+    }
+    case PageType::RasterizerCachedMemory: {
+        RasterizerFlushVirtualRegion(current_vaddr, static_cast<u32>(size), FlushMode::Flush);
+        std::memcpy(dest_buffer, GetPointerFromVMA(process, current_vaddr), size);
+        break;
+    }
+    case PageType::Unmapped: {
+        LOG_ERROR(HW_Memory,
+                  "Unmapped ReadBlock @ 0x{:016X} (start address = 0x{:016X}, size = {})",
+                  current_vaddr, src_addr, size);
+        std::memset(dest_buffer, 0, size);
+        break;
+    }
+    default:
+        UNREACHABLE();
+    }
+}
+
 void ReadBlock(const Kernel::Process& process, const VAddr src_addr, void* dest_buffer,
                const std::size_t size) {
     const auto& page_table = process.VMManager().page_table;
@@ -439,7 +502,11 @@ void ReadBlock(const Kernel::Process& process, const VAddr src_addr, void* dest_
 }
 
 void ReadBlock(const VAddr src_addr, void* dest_buffer, const std::size_t size) {
-    ReadBlock(*Core::CurrentProcess(), src_addr, dest_buffer, size);
+    if (size <= static_cast<std::size_t>(PAGE_SIZE)) {
+        ReadBlock(*Core::CurrentProcess(), src_addr, dest_buffer, size);
+    } else {
+        TryReadBlockFast(*Core::CurrentProcess(), src_addr, dest_buffer, size);
+    }
 }
 
 void Write8(const VAddr addr, const u8 data) {
